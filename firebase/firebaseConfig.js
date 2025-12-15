@@ -1,17 +1,39 @@
-// firebase/firebaseConfig.js
+// src/firebase/firebase.js
 import admin from "firebase-admin";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const serviceAccount = JSON.parse(
-  readFileSync(new URL("../api-core-c06dd-firebase-adminsdk-fbsvc-5580d5a08b.json", import.meta.url))
-);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://api-core-c06dd-default-rtdb.firebaseio.com" // 🔁 use your Firebase project URL
-});
+let serviceAccount;
 
-// Firestore reference
+// ✅ Priority 1: Render / Production
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+}
+// ✅ Priority 2: Local development
+else {
+  const localKeyPath = path.resolve(
+    __dirname,
+    "../secrets/api-core-c06dd-6682e9ac51d7.json"
+  );
+
+  if (!existsSync(localKeyPath)) {
+    throw new Error("Firebase service account key not found");
+  }
+
+  serviceAccount = JSON.parse(
+    readFileSync(localKeyPath, "utf8")
+  );
+}
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
 const db = admin.firestore();
-
-export { db, admin };
+export { admin, db };
